@@ -1,0 +1,44 @@
+node
+{
+  echo "GitHub BranhName ${env.BRANCH_NAME}"
+  echo "Jenkins Job Number ${env.BUILD_NUMBER}"
+  echo "Jenkins Node Name ${env.NODE_NAME}"
+  
+  echo "Jenkins Home ${env.JENKINS_HOME}"
+  echo "Jenkins URL ${env.JENKINS_URL}"
+  echo "JOB Name ${env.JOB_NAME}"
+  
+  properties([
+    buildDiscarder(logRotator(numToKeepStr: '3')),
+    pipelineTriggers([
+        pollSCM('* * * * *')
+    ])
+  ])
+    
+    
+def mavenHome =tool name: "maven3.6.3"
+stage('gitrepo')
+{
+git branch: 'development', credentialsId: '2a8d24a4-a640-4c38-90c1-0e2e8e29fb27', url: 'https://github.com/sowjanya516/maven-web-application.git'
+}
+stage('bulid')
+{
+sh "${mavenHome}/bin/mvn clean package"
+}
+stage('SonarQubeReport')
+ {
+  sh "${mavenHome}/bin/mvn sonar:sonar"
+ }
+stage('UploadArtifactsIntoNexus')
+ {
+  sh "${mavenHome}/bin/mvn clean deploy"
+ }
+stage('deployapplication')
+{
+sshagent(['fdc64332-c56f-4ef1-acb5-ed601d761383']) 
+{
+sh "scp -o StrictHostKeyChecking=no target/maven-web-application.war ec2-user@13.235.245.214:/opt/apache-tomcat-9.0.29/webapps/maven-web-application.war"
+}
+}
+
+}
